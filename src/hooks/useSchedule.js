@@ -27,10 +27,15 @@ const useSchedule = (dayOverride = null) => {
       const result = await fetchScheduleByDay(day, pageNum);
       const newItems = filterAnime(result.data);
 
+      // Sort by score descending — unscored anime fall to the bottom
+      const sortByScore = (arr) =>
+        [...arr].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+
       setData((prev) => {
-        if (!append) return newItems;
+        if (!append) return sortByScore(newItems);
         const seen = new Set(prev.map((a) => a.mal_id));
-        return [...prev, ...newItems.filter((a) => !seen.has(a.mal_id))];
+        const merged = [...prev, ...newItems.filter((a) => !seen.has(a.mal_id))];
+        return sortByScore(merged);
       });
       setHasNextPage(result.pagination?.has_next_page ?? false);
       setPage(pageNum);

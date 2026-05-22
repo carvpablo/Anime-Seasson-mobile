@@ -5,7 +5,9 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true
     },
@@ -15,7 +17,9 @@
       }
     },
     "scheme": "anime-season",
-    "plugins": ["expo-router"],
+    "plugins": [
+      "expo-secure-store"
+    ],
     "experiments": {
       "typedRoutes": false
     }

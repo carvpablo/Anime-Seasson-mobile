@@ -40,3 +40,4 @@
 - **Performance**: Prioritize `FlatList` over `ScrollView` for anime lists to ensure smooth mobile performance.
 - **Localization**: Ensure all release times are adjusted to the user's local timezone (UTC-3 for Brasília).
 - **Imports**: Use absolute paths if configured, otherwise keep relative imports clean.
+- **Language**: Make sure the content is writen in English

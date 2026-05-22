@@ -8,7 +8,6 @@ import {
   RefreshControl,
   useWindowDimensions,
 } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -22,14 +21,13 @@ import { colors, spacing, typography, radius } from '../constants/theme';
 
 const numColumns = 2;
 
-export default function HomeScreen() {
-  const router = useRouter();
+export default function HomeScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
   const isCompact = screenWidth <= 402; // iPhone 17 Pro logical width (402pt)
 
   // Read filters passed from the search screen (serialized as JSON string)
-  const { filters: filtersParam } = useLocalSearchParams();
+  const filtersParam = route.params?.filters;
   const activeFilters = useMemo(
     () => (filtersParam ? JSON.parse(filtersParam) : null),
     [filtersParam]
@@ -39,16 +37,16 @@ export default function HomeScreen() {
     useSeasonalAnime(activeFilters);
 
   const handleSchedulePress = useCallback(() => {
-    router.push('/schedule');
-  }, [router]);
+    navigation.navigate('Grade');
+  }, [navigation]);
 
   const handleSearchPress = useCallback(() => {
-    router.push('/search');
-  }, [router]);
+    navigation.navigate('Search');
+  }, [navigation]);
 
   const handleClearFilters = useCallback(() => {
-    router.replace('/');
-  }, [router]);
+    navigation.setParams({ filters: undefined });
+  }, [navigation]);
 
   const renderHeader = useCallback(
     () => (
@@ -67,7 +65,7 @@ export default function HomeScreen() {
               onPress={handleSearchPress}
               activeOpacity={0.8}
             >
-              <Ionicons name="search-outline" size={20} color={colors.accent} />
+              <Ionicons name="options-outline" size={20} color={colors.accent} />
             </TouchableOpacity>
             <TouchableOpacity
               style={isCompact ? styles.iconButton : styles.scheduleButton}
@@ -173,7 +171,7 @@ export default function HomeScreen() {
             colors={[colors.accent]}
           />
         }
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, { paddingBottom: spacing.xl + 80 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
         columnWrapperStyle={styles.row}
       />

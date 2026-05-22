@@ -79,11 +79,23 @@ export const applySearchFilters = (items, filters) => {
       if (!match) return false;
     }
 
-    // Genre keyword
+    // Genre keyword (text search)
     if (filters.genre) {
       const q = filters.genre.toLowerCase();
       const allG = [...(anime.genres ?? []), ...(anime.themes ?? [])];
       if (!allG.some((g) => g.name.toLowerCase().includes(q))) return false;
+    }
+
+    // Genre ID (from picker — checks genres, themes and demographics)
+    if (filters.genreId) {
+      const id = Number(filters.genreId);
+      const allG = [
+        ...(anime.genres ?? []),
+        ...(anime.themes ?? []),
+        ...(anime.demographics ?? []),
+        ...(anime.explicit_genres ?? []),
+      ];
+      if (!allG.some((g) => g.mal_id === id)) return false;
     }
 
     // Type (TV, Movie, OVA …)

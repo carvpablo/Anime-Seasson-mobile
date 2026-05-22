@@ -13,7 +13,6 @@ import { Picker } from '@react-native-picker/picker';
 import Slider from '@react-native-community/slider';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
 import { colors, spacing, typography, radius, shadows } from '../constants/theme';
 
 // ─── Default State ────────────────────────────────────────────────────────────
@@ -24,9 +23,9 @@ const DEFAULT_FILTERS = {
   character: '',
   type: '',
   rating: '',
+  genreId: '',
   minScore: 0,
   minEpisodes: 1,
-  airingOnly: false,
   safeSearch: true,
 };
 
@@ -132,20 +131,35 @@ const TYPE_OPTIONS = [
   { label: 'Music', value: 'music' },
 ];
 
-const RATING_OPTIONS = [
-  { label: 'Any Rating', value: '' },
-  { label: 'G – All Ages', value: 'g' },
-  { label: 'PG – Children', value: 'pg' },
-  { label: 'PG-13 – Teens 13+', value: 'pg13' },
-  { label: 'R – 17+ (Violence)', value: 'r17' },
-  { label: 'R+ – Mild Nudity', value: 'r' },
+const GENRE_OPTIONS = [
+  { label: 'Any Genre', value: '' },
+  { label: 'Action', value: '1' },
+  { label: 'Adventure', value: '2' },
+  { label: 'Avant Garde', value: '5' },
+  { label: 'Award Winning', value: '46' },
+  { label: 'Boys Love', value: '28' },
+  { label: 'Comedy', value: '4' },
+  { label: 'Drama', value: '8' },
+  { label: 'Fantasy', value: '10' },
+  { label: 'Girls Love', value: '26' },
+  { label: 'Gourmet', value: '47' },
+  { label: 'Horror', value: '14' },
+  { label: 'Mystery', value: '7' },
+  { label: 'Romance', value: '22' },
+  { label: 'Sci-Fi', value: '24' },
+  { label: 'Slice of Life', value: '36' },
+  { label: 'Sports', value: '30' },
+  { label: 'Supernatural', value: '37' },
+  { label: 'Suspense', value: '41' },
+  { label: 'Ecchi', value: '9' },
+  { label: 'Erotica', value: '49' },
+  { label: 'Hentai', value: '12' },
 ];
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
-export default function SearchScreen() {
+export default function SearchScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const router = useRouter();
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
 
   const set = useCallback(
@@ -154,11 +168,8 @@ export default function SearchScreen() {
   );
 
   const handleSearch = useCallback(() => {
-    router.push({
-      pathname: '/',
-      params: { filters: JSON.stringify(filters) },
-    });
-  }, [filters, router]);
+    navigation.navigate('MainTabs', { screen: 'Inicio', params: { filters: JSON.stringify(filters) } });
+  }, [filters, navigation]);
 
   const handleReset = useCallback(() => {
     setFilters(DEFAULT_FILTERS);
@@ -167,7 +178,7 @@ export default function SearchScreen() {
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xxxl }]}
+      contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 80 + spacing.xxxl }]}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
@@ -224,10 +235,10 @@ export default function SearchScreen() {
           <View style={styles.pickerDivider} />
           <View style={styles.pickerHalf}>
             <StyledPicker
-              label="Rating"
-              selectedValue={filters.rating}
-              onValueChange={set('rating')}
-              items={RATING_OPTIONS}
+              label="Genre"
+              selectedValue={filters.genreId}
+              onValueChange={set('genreId')}
+              items={GENRE_OPTIONS}
             />
           </View>
         </View>
@@ -261,14 +272,6 @@ export default function SearchScreen() {
       {/* ── Switches ── */}
       <View style={styles.card}>
         <SectionLabel icon="toggle-outline" label="Preferences" />
-        <StyledSwitch
-          label="Currently Airing Only"
-          description="Show only anime currently on air"
-          value={filters.airingOnly}
-          onValueChange={set('airingOnly')}
-          icon="radio-outline"
-        />
-        <View style={styles.divider} />
         <StyledSwitch
           label="Safe Search (SFW)"
           description="Exclude adult and explicit content"
@@ -514,4 +517,3 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
 });
-

@@ -7,10 +7,11 @@ import {
   TouchableOpacity,
   Dimensions,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radius, typography, shadows } from '../constants/theme';
 import { formatBroadcast } from '../utils/dateHelpers';
+import { useFavorites } from '../context/FavoritesContext';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - spacing.lg * 2 - spacing.md) / 2;
@@ -29,11 +30,13 @@ const ScoreBadge = ({ score }) => {
 };
 
 const AnimeCard = ({ anime }) => {
-  const router = useRouter();
+  const navigation = useNavigation();
+  const { isFavorite } = useFavorites();
+  const saved = isFavorite(anime?.mal_id);
 
   const handlePress = useCallback(() => {
-    router.push(`/details/${anime.mal_id}`);
-  }, [router, anime.mal_id]);
+    navigation.navigate('AnimeDetail', { id: anime.mal_id });
+  }, [navigation, anime.mal_id]);
 
   const imageUri = anime?.images?.jpg?.large_image_url || anime?.images?.jpg?.image_url;
   const title = anime?.title_english || anime?.title || 'Unknown Title';
@@ -71,6 +74,13 @@ const AnimeCard = ({ anime }) => {
         ) : null}
 
         <ScoreBadge score={anime?.score} />
+
+        {/* Bookmark badge */}
+        {saved && (
+          <View style={styles.bookmarkBadge}>
+            <Ionicons name="bookmark" size={13} color="#fff" />
+          </View>
+        )}
       </View>
 
       {/* Info */}
@@ -117,7 +127,7 @@ const styles = StyleSheet.create({
   },
   imageOverlay: {
     ...StyleSheet.absoluteFillObject,
-    background: 'transparent',
+    backgroundColor: 'transparent',
   },
   typeBadge: {
     position: 'absolute',
@@ -149,6 +159,16 @@ const styles = StyleSheet.create({
   scoreText: {
     ...typography.label,
     color: colors.warning,
+  },
+  bookmarkBadge: {
+    position: 'absolute',
+    bottom: spacing.xs,
+    right: spacing.xs,
+    backgroundColor: colors.accent,
+    borderRadius: radius.sm,
+    padding: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   info: {
     height: INFO_HEIGHT,

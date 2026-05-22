@@ -8,8 +8,8 @@ import {
   TouchableOpacity,
   RefreshControl,
 } from 'react-native';
-import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import DayTabs from '../components/DayTabs';
 import LoadingState, { LoadingMore } from '../components/LoadingState';
@@ -20,8 +20,7 @@ import { colors, spacing, radius, typography, shadows } from '../constants/theme
 import { formatBroadcast } from '../utils/dateHelpers';
 
 
-const ScheduleCard = ({ anime }) => {
-  const router = useRouter();
+const ScheduleCard = ({ anime, navigation }) => {
   const imageUri = anime?.images?.jpg?.image_url;
   const title = anime?.title_english || anime?.title || 'Unknown Title';
   const broadcast = formatBroadcast(anime?.broadcast?.string);
@@ -32,7 +31,7 @@ const ScheduleCard = ({ anime }) => {
   return (
     <TouchableOpacity
       style={styles.scheduleCard}
-      onPress={() => router.push(`/details/${anime.mal_id}`)}
+      onPress={() => navigation.navigate('AnimeDetail', { id: anime.mal_id })}
       activeOpacity={0.85}
     >
       {/* Poster thumbnail */}
@@ -79,11 +78,15 @@ const ScheduleCard = ({ anime }) => {
   );
 };
 
-export default function ScheduleScreen() {
+export default function ScheduleScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const { data, selectedDay, loading, loadingMore, error, hasNextPage, changeDay, refresh, loadMore } =
     useSchedule();
 
-  const renderItem = useCallback(({ item }) => <ScheduleCard anime={item} />, []);
+  const renderItem = useCallback(
+    ({ item }) => <ScheduleCard anime={item} navigation={navigation} />,
+    [navigation]
+  );
 
   const renderFooter = useCallback(() => (loadingMore ? <LoadingMore /> : null), [loadingMore]);
 
@@ -99,7 +102,9 @@ export default function ScheduleScreen() {
 
   return (
     <View style={styles.container}>
-      <DayTabs selectedDay={selectedDay} onDayChange={changeDay} />
+      <View style={{ paddingTop: insets.top }}>
+        <DayTabs selectedDay={selectedDay} onDayChange={changeDay} />
+      </View>
 
       {loading && data.length === 0 ? (
         <LoadingState message="Loading schedule..." fullScreen />
@@ -138,7 +143,7 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
-    paddingBottom: spacing.xl,
+    paddingBottom: 100,
   },
   scheduleCard: {
     flexDirection: 'row',

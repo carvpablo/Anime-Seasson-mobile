@@ -27,7 +27,7 @@ const useSeasonalAnime = (filters = null) => {
 
       // 1. Remove adult/duplicate content
       const safe = filterAnime(result.data);
-      // 2. Apply user-selected filters client-side (seasonal data only)
+      // 2. Apply user-selected filters client-side (genre, type, score, etc.)
       const filtered = applySearchFilters(safe, filters);
 
       setData((prev) => {

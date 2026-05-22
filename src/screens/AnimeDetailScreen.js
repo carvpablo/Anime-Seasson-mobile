@@ -9,15 +9,15 @@ import {
   Dimensions,
   Animated,
 } from 'react-native';
-import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
-import LoadingState from '../../components/LoadingState';
-import ErrorState from '../../components/ErrorState';
+import LoadingState from '../components/LoadingState';
+import ErrorState from '../components/ErrorState';
 
-import { fetchAnimeDetail } from '../../services/api';
-import { colors, spacing, radius, typography, shadows } from '../../constants/theme';
-import { formatBroadcast } from '../../utils/dateHelpers';
+import { fetchAnimeDetail } from '../services/api';
+import { useFavorites } from '../context/FavoritesContext';
+import { colors, spacing, radius, typography, shadows } from '../constants/theme';
+import { formatBroadcast } from '../utils/dateHelpers';
 
 const { width } = Dimensions.get('window');
 const BANNER_HEIGHT = 320;
@@ -44,16 +44,31 @@ const SectionTitle = ({ children }) => (
 
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 
-export default function AnimeDetailScreen() {
-  const { id } = useLocalSearchParams();
-  const navigation = useNavigation();
-
+export default function AnimeDetailScreen({ route, navigation }) {
+  const { id } = route.params;
   const [anime, setAnime] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { isFavorite, toggleFavorite } = useFavorites();
+
+  // Animated bookmark scale
+  const bookmarkScale = useRef(new Animated.Value(1)).current;
 
   // Animated scroll value drives parallax + elastic effect
   const scrollY = useRef(new Animated.Value(0)).current;
+
+  const animateBookmark = useCallback(() => {
+    Animated.sequence([
+      Animated.timing(bookmarkScale, { toValue: 1.35, duration: 120, useNativeDriver: true }),
+      Animated.spring(bookmarkScale, { toValue: 1, friction: 4, useNativeDriver: true }),
+    ]).start();
+  }, [bookmarkScale]);
+
+  const handleToggleFavorite = useCallback(() => {
+    if (!anime) return;
+    animateBookmark();
+    toggleFavorite(anime);
+  }, [anime, animateBookmark, toggleFavorite]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -62,7 +77,10 @@ export default function AnimeDetailScreen() {
       const result = await fetchAnimeDetail(id);
       setAnime(result.data);
       const title = result.data?.title_english || result.data?.title || '';
-      navigation.setOptions({ title });
+      navigation.setOptions({
+        title,
+        headerRight: () => null, // placeholder — replaced after anime loads
+      });
     } catch (err) {
       setError(err.message || 'Failed to load anime details.');
     } finally {
@@ -73,6 +91,29 @@ export default function AnimeDetailScreen() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Update the header bookmark button whenever anime or favorite state changes
+  useEffect(() => {
+    if (!anime) return;
+    const saved = isFavorite(anime.mal_id);
+    navigation.setOptions({
+      headerRight: () => (
+        <Animated.View style={{ transform: [{ scale: bookmarkScale }], marginRight: spacing.md }}>
+          <TouchableOpacity
+            onPress={handleToggleFavorite}
+            activeOpacity={0.7}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons
+              name={saved ? 'bookmark' : 'bookmark-outline'}
+              size={24}
+              color={saved ? colors.accent : colors.textSecondary}
+            />
+          </TouchableOpacity>
+        </Animated.View>
+      ),
+    });
+  }, [anime, isFavorite, bookmarkScale, handleToggleFavorite, navigation]);
 
   if (loading) return <LoadingState message="Loading details..." fullScreen />;
   if (error || !anime) return <ErrorState message={error} onRetry={load} fullScreen />;

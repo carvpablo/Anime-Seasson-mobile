@@ -78,9 +78,9 @@ export const searchAnime = async (filters = {}, page = 1) => {
     if (filters.title)       params.q        = filters.title;
     if (filters.type)        params.type      = filters.type;
     if (filters.rating)      params.rating    = filters.rating;
+    if (filters.genreId)     params.genres    = filters.genreId;
     if (filters.minScore > 0) params.min_score = filters.minScore;
     if (filters.minEpisodes > 1) params.min_episodes = filters.minEpisodes;
-    if (filters.airingOnly)  params.status    = 'airing';
     if (filters.safeSearch)  params.sfw       = true;
 
     const response = await apiClient.get('/anime', { params });
