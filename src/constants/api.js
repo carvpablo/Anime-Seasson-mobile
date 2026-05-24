@@ -8,9 +8,12 @@ export const RATE_LIMIT = {
   baseDelay: 1000,
 };
 
-// MAL genre IDs to exclude from all lists
-// 9 = Ecchi | 12 = Hentai | 28 = Boys Love | 49 = Erotica
-export const EXCLUDED_GENRES = [9, 12, 28, 49];
+// MAL genre IDs considered adult/explicit content
+// 9 = Ecchi | 12 = Hentai | 49 = Erotica (Boys Love 28 removed per product decision)
+export const ADULT_GENRE_IDS = [9, 12, 49];
+
+// Kept for any legacy references — always the full adult list
+export const EXCLUDED_GENRES = ADULT_GENRE_IDS;
 
 // Days of the week as returned by Jikan's /schedules?filter= endpoint
 export const SCHEDULE_DAYS = [

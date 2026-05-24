@@ -13,8 +13,23 @@ import { EXCLUDED_GENRES } from '../constants/api';
  * @param {object} anime - Jikan anime object
  * @returns {boolean}
  */
-export const isAllowedAnime = (anime) => {
+/**
+ * Returns true if an anime should be shown (passes the content filter).
+ *
+ * Jikan v4 returns two separate genre arrays:
+ *   - `genres`          → regular genres (e.g. Ecchi ID 9)
+ *   - `explicit_genres` → adult genres (e.g. Hentai ID 12)
+ *
+ * The API's `genres_exclude` param only reliably filters `genres`, so we
+ * must also check `explicit_genres` on the client side.
+ *
+ * @param {object} anime - Jikan anime object
+ * @param {number[]} excludedIds - Genre IDs to block (empty = allow all)
+ * @returns {boolean}
+ */
+export const isAllowedAnime = (anime, excludedIds = EXCLUDED_GENRES) => {
   if (!anime) return false;
+  if (excludedIds.length === 0) return true;
 
   const allGenres = [
     ...(anime.genres ?? []),
@@ -23,7 +38,7 @@ export const isAllowedAnime = (anime) => {
     ...(anime.demographics ?? []),
   ];
 
-  return !allGenres.some((g) => EXCLUDED_GENRES.includes(g.mal_id));
+  return !allGenres.some((g) => excludedIds.includes(g.mal_id));
 };
 
 /**
@@ -31,12 +46,13 @@ export const isAllowedAnime = (anime) => {
  * and deduplicating by mal_id (Jikan can return the same title twice
  * when multiple platforms list it separately).
  * @param {object[]} items
+ * @param {number[]} excludedIds - Genre IDs to block (empty = allow all)
  * @returns {object[]}
  */
-export const filterAnime = (items) => {
+export const filterAnime = (items, excludedIds = EXCLUDED_GENRES) => {
   const seen = new Set();
   return (items ?? []).filter((anime) => {
-    if (!isAllowedAnime(anime)) return false;
+    if (!isAllowedAnime(anime, excludedIds)) return false;
     if (seen.has(anime.mal_id)) return false;
     seen.add(anime.mal_id);
     return true;

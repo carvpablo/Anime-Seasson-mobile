@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { fetchScheduleByDay } from '../services/api';
 import { getCurrentDay } from '../utils/seasonHelpers';
 import { filterAnime } from '../utils/contentFilter';
+import { useSafeSearch } from '../context/SafeSearchContext';
 
 /**
  * Custom hook to fetch the weekly airing schedule for a given day.
@@ -10,6 +11,7 @@ import { filterAnime } from '../utils/contentFilter';
  * @param {string|null} dayOverride - Override day key, e.g. 'monday'
  */
 const useSchedule = (dayOverride = null) => {
+  const { excludedGenreIds } = useSafeSearch();
   const [selectedDay, setSelectedDay] = useState(dayOverride || getCurrentDay());
   const [data, setData] = useState([]);
   const [page, setPage] = useState(1);
@@ -24,8 +26,8 @@ const useSchedule = (dayOverride = null) => {
     setError(null);
 
     try {
-      const result = await fetchScheduleByDay(day, pageNum);
-      const newItems = filterAnime(result.data);
+      const result = await fetchScheduleByDay(day, pageNum, excludedGenreIds);
+      const newItems = filterAnime(result.data, excludedGenreIds);
 
       // Sort by score descending — unscored anime fall to the bottom
       const sortByScore = (arr) =>
@@ -45,7 +47,7 @@ const useSchedule = (dayOverride = null) => {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, []);
+  }, [excludedGenreIds]); // re-runs when safe search changes
 
   useEffect(() => {
     load(selectedDay, 1, false);

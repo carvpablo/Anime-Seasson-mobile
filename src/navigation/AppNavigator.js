@@ -18,6 +18,7 @@ import RegisterScreen from '../screens/auth/RegisterScreen';
 import CustomTabBar from './CustomTabBar';
 import { useAuth } from '../context/AuthContext';
 import { FavoritesProvider } from '../context/FavoritesContext';
+import { SafeSearchProvider } from '../context/SafeSearchContext';
 import { colors } from '../constants/theme';
 
 // ─── Navigators ───────────────────────────────────────────────────────────────
@@ -112,9 +113,11 @@ export default function AppNavigator() {
       <StatusBar style="light" backgroundColor={colors.background} />
       <NavigationContainer>
         {user ? (
-          <FavoritesProvider>
-            <AppNavigatorInner />
-          </FavoritesProvider>
+          <SafeSearchProvider>
+            <FavoritesProvider>
+              <AppNavigatorInner />
+            </FavoritesProvider>
+          </SafeSearchProvider>
         ) : (
           <AuthNavigator />
         )}

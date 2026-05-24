@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { fetchCurrentSeason } from '../services/api';
 import { filterAnime, applySearchFilters } from '../utils/contentFilter';
+import { useSafeSearch } from '../context/SafeSearchContext';
 
 /**
  * Custom hook to fetch and paginate the current seasonal anime list.
@@ -10,6 +11,7 @@ import { filterAnime, applySearchFilters } from '../utils/contentFilter';
  * @param {object|null} filters - Search filter object from the search screen, or null
  */
 const useSeasonalAnime = (filters = null) => {
+  const { excludedGenreIds } = useSafeSearch();
   const [data, setData] = useState([]);
   const [page, setPage] = useState(1);
   const [hasNextPage, setHasNextPage] = useState(false);
@@ -23,10 +25,10 @@ const useSeasonalAnime = (filters = null) => {
     setError(null);
 
     try {
-      const result = await fetchCurrentSeason(pageNum);
+      const result = await fetchCurrentSeason(pageNum, excludedGenreIds);
 
       // 1. Remove adult/duplicate content
-      const safe = filterAnime(result.data);
+      const safe = filterAnime(result.data, excludedGenreIds);
       // 2. Apply user-selected filters client-side (genre, type, score, etc.)
       const filtered = applySearchFilters(safe, filters);
 
@@ -43,7 +45,7 @@ const useSeasonalAnime = (filters = null) => {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [filters]); // re-runs whenever filters change
+  }, [filters, excludedGenreIds]); // re-runs whenever filters or safe search change
 
   useEffect(() => {
     load(1, false);

@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  Image,
   ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,12 +14,45 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { colors, spacing, radius, typography, shadows } from '../constants/theme';
 
-// ─── Avatar from initials ─────────────────────────────────────────────────────
+// ─── Local avatars ────────────────────────────────────────────────────────────
 
-const Avatar = ({ username, size = 80 }) => {
+const AVATAR_OPTIONS = [
+  { id: 'avatar-01', source: require('../../assets/avatars/avatar-01.png') },
+  { id: 'avatar-02', source: require('../../assets/avatars/avatar-02.jpg') },
+  { id: 'avatar-03', source: require('../../assets/avatars/avatar-03.png') },
+  { id: 'avatar-04', source: require('../../assets/avatars/avatar-04.jpg') },
+  { id: 'avatar-05', source: require('../../assets/avatars/avatar-05.png') },
+  { id: 'avatar-06', source: require('../../assets/avatars/avatar-06.png') },
+];
+
+const getAvatarSource = (avatarId) =>
+  AVATAR_OPTIONS.find((avatar) => avatar.id === avatarId)?.source;
+
+// ─── Avatar ───────────────────────────────────────────────────────────────────
+
+const Avatar = ({ username, avatarId, size = 80 }) => {
+  const avatarSource = getAvatarSource(avatarId);
   const initials = username
     ? username.slice(0, 2).toUpperCase()
     : '?';
+
+  if (avatarSource) {
+    return (
+      <View
+        style={[
+          avatarStyles.imageWrap,
+          { width: size, height: size, borderRadius: size / 2 },
+        ]}
+      >
+        <Image
+          source={avatarSource}
+          resizeMode="cover"
+          style={{ width: size, height: size, borderRadius: size / 2 }}
+        />
+      </View>
+    );
+  }
+
   return (
     <View
       style={[
@@ -34,6 +68,17 @@ const Avatar = ({ username, size = 80 }) => {
 };
 
 const avatarStyles = StyleSheet.create({
+  imageWrap: {
+    backgroundColor: colors.card,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: colors.accent,
+    shadowColor: colors.accent,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.35,
+    shadowRadius: 18,
+    elevation: 10,
+  },
   circle: {
     backgroundColor: colors.accent,
     alignItems: 'center',
@@ -96,11 +141,14 @@ const infoStyles = StyleSheet.create({
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function ProfileScreen() {
-  const { user, signOut, getProfile } = useAuth();
+  const { user, signOut, getProfile, updateProfile } = useAuth();
   const insets = useSafeAreaInsets();
 
   const [profile, setProfile] = useState(null);
   const [profileLoading, setProfileLoading] = useState(true);
+  const [avatarPickerVisible, setAvatarPickerVisible] = useState(false);
+  const [avatarHovered, setAvatarHovered] = useState(false);
+  const [savingAvatarId, setSavingAvatarId] = useState(null);
   const [signingOut, setSigningOut] = useState(false);
 
   const fetchProfile = useCallback(async () => {
@@ -133,7 +181,32 @@ export default function ProfileScreen() {
     );
   };
 
+  const handleAvatarSelect = async (avatarId) => {
+    if (avatarId === profile?.avatar_id || savingAvatarId) return;
+
+    setSavingAvatarId(avatarId);
+    const previousProfile = profile;
+    setProfile((current) => ({ ...current, avatar_id: avatarId }));
+
+    const { error } = await updateProfile({ avatar_id: avatarId });
+
+    if (error) {
+      setProfile(previousProfile);
+      Alert.alert(
+        'Avatar not saved',
+        'Make sure the profiles table has an avatar_id column and try again.',
+      );
+    }
+
+    setSavingAvatarId(null);
+  };
+
+  const handleAvatarPress = () => {
+    setAvatarPickerVisible((visible) => !visible);
+  };
+
   const username = profile?.username || user?.user_metadata?.username || 'User';
+  const selectedAvatarId = profile?.avatar_id;
   const email = user?.email || '';
   const createdAt = user?.created_at
     ? new Date(user.created_at).toLocaleDateString('en-US', {
@@ -164,7 +237,30 @@ export default function ProfileScreen() {
           <ActivityIndicator color={colors.accent} size="large" />
         ) : (
           <>
-            <Avatar username={username} size={84} />
+            <TouchableOpacity
+              style={[
+                styles.avatarTrigger,
+                avatarPickerVisible && styles.avatarTriggerActive,
+                avatarHovered && styles.avatarTriggerHovered,
+              ]}
+              onPress={handleAvatarPress}
+              onMouseEnter={() => setAvatarHovered(true)}
+              onMouseLeave={() => setAvatarHovered(false)}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Choose profile picture"
+              accessibilityState={{ expanded: avatarPickerVisible }}
+            >
+              <Avatar username={username} avatarId={selectedAvatarId} size={84} />
+              <View
+                style={[
+                  styles.avatarEditOverlay,
+                  (avatarHovered || avatarPickerVisible) && styles.avatarEditOverlayVisible,
+                ]}
+              >
+                <Ionicons name="camera-outline" size={22} color="#fff" />
+              </View>
+            </TouchableOpacity>
             <View style={styles.heroInfo}>
               <Text style={styles.heroName}>{username}</Text>
               <Text style={styles.heroEmail}>{email}</Text>
@@ -176,6 +272,53 @@ export default function ProfileScreen() {
           </>
         )}
       </View>
+
+      {avatarPickerVisible && (
+        <View style={styles.card}>
+          <Text style={styles.cardLabel}>PROFILE PICTURE</Text>
+          <View style={styles.avatarGrid}>
+            {AVATAR_OPTIONS.map((avatar) => {
+              const selected = avatar.id === selectedAvatarId;
+              const saving = avatar.id === savingAvatarId;
+
+              return (
+                <TouchableOpacity
+                  key={avatar.id}
+                  style={[
+                    styles.avatarOption,
+                    selected && styles.avatarOptionSelected,
+                  ]}
+                  onPress={() => handleAvatarSelect(avatar.id)}
+                  disabled={profileLoading || !!savingAvatarId}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Choose ${avatar.id}`}
+                  accessibilityState={{
+                    selected,
+                    disabled: profileLoading || !!savingAvatarId,
+                  }}
+                >
+                  <Image
+                    source={avatar.source}
+                    resizeMode="cover"
+                    style={styles.avatarOptionImage}
+                  />
+                  {selected && (
+                    <View style={styles.avatarCheck}>
+                      <Ionicons name="checkmark" size={14} color="#fff" />
+                    </View>
+                  )}
+                  {saving && (
+                    <View style={styles.avatarSavingOverlay}>
+                      <ActivityIndicator color={colors.accent} size="small" />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+      )}
 
       {/* Info card */}
       <View style={styles.card}>
@@ -192,26 +335,7 @@ export default function ProfileScreen() {
         )}
       </View>
 
-      {/* Stats card */}
-      <View style={styles.statsCard}>
-        <View style={styles.statItem}>
-          <Ionicons name="tv-outline" size={24} color={colors.accent} />
-          <Text style={styles.statNumber}>—</Text>
-          <Text style={styles.statLabel}>Animes</Text>
-        </View>
-        <View style={styles.statDivider} />
-        <View style={styles.statItem}>
-          <Ionicons name="star-outline" size={24} color={colors.warning} />
-          <Text style={styles.statNumber}>—</Text>
-          <Text style={styles.statLabel}>Favorites</Text>
-        </View>
-        <View style={styles.statDivider} />
-        <View style={styles.statItem}>
-          <Ionicons name="calendar-outline" size={24} color={colors.info} />
-          <Text style={styles.statNumber}>—</Text>
-          <Text style={styles.statLabel}>Seasons</Text>
-        </View>
-      </View>
+
 
       {/* Danger zone */}
       <View style={styles.dangerCard}>
@@ -305,6 +429,37 @@ const styles = StyleSheet.create({
     color: colors.success,
     fontWeight: '600',
   },
+  avatarTrigger: {
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarTriggerHovered: {
+    backgroundColor: 'rgba(233,69,96,0.16)',
+    transform: [{ scale: 1.04 }],
+  },
+  avatarTriggerActive: {
+    backgroundColor: 'rgba(233,69,96,0.12)',
+  },
+  avatarEditOverlay: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    bottom: 4,
+    left: 4,
+    borderRadius: 42,
+    backgroundColor: 'rgba(0,0,0,0.42)',
+    borderWidth: 2,
+    borderColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    opacity: 0,
+  },
+  avatarEditOverlayVisible: {
+    opacity: 1,
+  },
 
   // Info card
   card: {
@@ -327,35 +482,54 @@ const styles = StyleSheet.create({
     backgroundColor: colors.divider,
   },
 
-  // Stats card
-  statsCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    padding: spacing.lg,
+  // Avatar picker
+  avatarGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+  },
+  avatarOption: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: colors.card,
+    borderWidth: 2,
+    borderColor: colors.cardBorder,
+    overflow: 'hidden',
+  },
+  avatarOptionSelected: {
+    borderColor: colors.accent,
+    ...shadows.accent,
+  },
+  avatarOptionImage: {
+    width: '100%',
+    height: '100%',
+  },
+  avatarCheck: {
+    position: 'absolute',
+    right: 2,
+    bottom: 2,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.accent,
+    borderWidth: 2,
+    borderColor: colors.surface,
     alignItems: 'center',
-    ...shadows.card,
+    justifyContent: 'center',
   },
-  statItem: {
-    flex: 1,
+  avatarSavingOverlay: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: 'rgba(0,0,0,0.45)',
     alignItems: 'center',
-    gap: spacing.xs,
+    justifyContent: 'center',
   },
-  statNumber: {
-    ...typography.h3,
-    color: colors.textPrimary,
-  },
-  statLabel: {
-    ...typography.caption,
-    color: colors.textSecondary,
-  },
-  statDivider: {
-    width: 1,
-    height: 50,
-    backgroundColor: colors.divider,
-  },
+
+
 
   // Danger zone
   dangerCard: {

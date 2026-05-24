@@ -14,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import LoadingState from '../components/LoadingState';
 import ErrorState from '../components/ErrorState';
 
-import { fetchAnimeDetail } from '../services/api';
+import { fetchAnimeDetail, fetchAnimeEpisodes } from '../services/api';
 import { useFavorites } from '../context/FavoritesContext';
 import { colors, spacing, radius, typography, shadows } from '../constants/theme';
 import { formatBroadcast } from '../utils/dateHelpers';
@@ -42,6 +42,45 @@ const SectionTitle = ({ children }) => (
   <Text style={styles.sectionTitle}>{children}</Text>
 );
 
+// ─── Episode Row ─────────────────────────────────────────────────────────────
+
+const EpisodeRow = ({ episode }) => {
+  const title = episode.title || episode.title_romanji || episode.title_japanese;
+  const hasTitle = !!title;
+
+  const airDate = episode.aired
+    ? new Date(episode.aired).toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      })
+    : null;
+
+  return (
+    <View style={styles.episodeRow}>
+      <View style={styles.episodeNumberBadge}>
+        <Text style={styles.episodeNumber}>{episode.mal_id}</Text>
+      </View>
+      <View style={styles.episodeInfo}>
+        {hasTitle ? (
+          <Text style={styles.episodeTitle} numberOfLines={2}>{title}</Text>
+        ) : (
+          <View style={styles.comingSoonBadge}>
+            <Ionicons name="time-outline" size={11} color={colors.warning} />
+            <Text style={styles.comingSoonText}>Coming soon</Text>
+          </View>
+        )}
+        {airDate && (
+          <View style={styles.episodeDateRow}>
+            <Ionicons name="calendar-outline" size={11} color={colors.textMuted} />
+            <Text style={styles.episodeDate}>{airDate}</Text>
+          </View>
+        )}
+      </View>
+    </View>
+  );
+};
+
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 
 export default function AnimeDetailScreen({ route, navigation }) {
@@ -49,6 +88,8 @@ export default function AnimeDetailScreen({ route, navigation }) {
   const [anime, setAnime] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [episodes, setEpisodes] = useState([]);
+  const [episodesLoading, setEpisodesLoading] = useState(true);
   const { isFavorite, toggleFavorite } = useFavorites();
 
   // Animated bookmark scale
@@ -73,6 +114,7 @@ export default function AnimeDetailScreen({ route, navigation }) {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setEpisodesLoading(true);
     try {
       const result = await fetchAnimeDetail(id);
       setAnime(result.data);
@@ -85,6 +127,16 @@ export default function AnimeDetailScreen({ route, navigation }) {
       setError(err.message || 'Failed to load anime details.');
     } finally {
       setLoading(false);
+    }
+
+    // Load episodes independently so they don't block the main content
+    try {
+      const epResult = await fetchAnimeEpisodes(id);
+      setEpisodes(epResult.data || []);
+    } catch {
+      setEpisodes([]);
+    } finally {
+      setEpisodesLoading(false);
     }
   }, [id, navigation]);
 
@@ -124,7 +176,7 @@ export default function AnimeDetailScreen({ route, navigation }) {
   const score = anime.score;
   const rank = anime.rank;
   const members = anime.members;
-  const episodes = anime.episodes;
+  const episodeCount = anime.episodes;
   const status = anime.status;
   const season = anime.season;
   const year = anime.year;
@@ -220,7 +272,7 @@ export default function AnimeDetailScreen({ route, navigation }) {
         <View style={styles.statDivider} />
         <StatBox icon="people-outline" label="Members" value={formatNumber(members)} />
         <View style={styles.statDivider} />
-        <StatBox icon="film-outline" label="Episodes" value={episodes ?? '?'} />
+        <StatBox icon="film-outline" label="Episodes" value={episodeCount ?? '?'} />
       </View>
 
       {/* Broadcast */}
@@ -254,6 +306,29 @@ export default function AnimeDetailScreen({ route, navigation }) {
         <View style={styles.section}>
           <SectionTitle>Synopsis</SectionTitle>
           <Text style={styles.synopsis}>{synopsis}</Text>
+        </View>
+      )}
+
+      {/* Episodes */}
+      {(episodesLoading || episodes.length > 0) && (
+        <View style={styles.section}>
+          <SectionTitle>Episodes</SectionTitle>
+          {episodesLoading ? (
+            // Subtle skeleton placeholders while loading
+            [...Array(4)].map((_, i) => (
+              <View key={i} style={[styles.episodeRow, styles.episodeSkeleton]}>
+                <View style={styles.episodeSkeletonBadge} />
+                <View style={styles.episodeSkeletonBody}>
+                  <View style={styles.episodeSkeletonLine} />
+                  <View style={[styles.episodeSkeletonLine, { width: '40%', marginTop: 6 }]} />
+                </View>
+              </View>
+            ))
+          ) : (
+            episodes.map((ep) => (
+              <EpisodeRow key={ep.mal_id} episode={ep} />
+            ))
+          )}
         </View>
       )}
 
@@ -444,5 +519,88 @@ const styles = StyleSheet.create({
   trailerText: {
     ...typography.h4,
     color: colors.textPrimary,
+  },
+
+  // Episodes
+  episodeRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.md,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.divider,
+  },
+  episodeNumberBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  episodeNumber: {
+    ...typography.label,
+    color: colors.accent,
+    letterSpacing: 0,
+  },
+  episodeInfo: {
+    flex: 1,
+    gap: spacing.xs,
+    justifyContent: 'center',
+  },
+  episodeTitle: {
+    ...typography.body,
+    color: colors.textPrimary,
+    fontWeight: '500',
+  },
+  comingSoonBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(246, 201, 14, 0.12)',
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(246, 201, 14, 0.3)',
+  },
+  comingSoonText: {
+    ...typography.caption,
+    color: colors.warning,
+    fontWeight: '600',
+  },
+  episodeDateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  episodeDate: {
+    ...typography.caption,
+    color: colors.textMuted,
+  },
+  // Skeleton placeholders
+  episodeSkeleton: {
+    opacity: 0.5,
+  },
+  episodeSkeletonBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.sm,
+    backgroundColor: colors.shimmer,
+    flexShrink: 0,
+  },
+  episodeSkeletonBody: {
+    flex: 1,
+    gap: 6,
+  },
+  episodeSkeletonLine: {
+    height: 12,
+    width: '70%',
+    borderRadius: radius.sm,
+    backgroundColor: colors.shimmer,
   },
 });

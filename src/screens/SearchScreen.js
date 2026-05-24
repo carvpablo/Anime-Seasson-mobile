@@ -8,25 +8,24 @@ import {
   ScrollView,
   StyleSheet,
   Platform,
+  Alert,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import Slider from '@react-native-community/slider';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, typography, radius, shadows } from '../constants/theme';
+import { useSafeSearch } from '../context/SafeSearchContext';
 
 // ─── Default State ────────────────────────────────────────────────────────────
 const DEFAULT_FILTERS = {
   title: '',
   studio: '',
-  genre: '',
-  character: '',
   type: '',
   rating: '',
   genreId: '',
   minScore: 0,
   minEpisodes: 1,
-  safeSearch: true,
 };
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -137,7 +136,6 @@ const GENRE_OPTIONS = [
   { label: 'Adventure', value: '2' },
   { label: 'Avant Garde', value: '5' },
   { label: 'Award Winning', value: '46' },
-  { label: 'Boys Love', value: '28' },
   { label: 'Comedy', value: '4' },
   { label: 'Drama', value: '8' },
   { label: 'Fantasy', value: '10' },
@@ -151,6 +149,10 @@ const GENRE_OPTIONS = [
   { label: 'Sports', value: '30' },
   { label: 'Supernatural', value: '37' },
   { label: 'Suspense', value: '41' },
+];
+
+// Only shown when Safe Search is OFF
+const ADULT_GENRE_OPTIONS = [
   { label: 'Ecchi', value: '9' },
   { label: 'Erotica', value: '49' },
   { label: 'Hentai', value: '12' },
@@ -161,11 +163,43 @@ const GENRE_OPTIONS = [
 export default function SearchScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
+  const { safeSearch, setSafeSearch } = useSafeSearch();
 
   const set = useCallback(
     (key) => (val) => setFilters((prev) => ({ ...prev, [key]: val })),
     []
   );
+
+  // When disabling Safe Search: ask for confirmation first.
+  // When re-enabling: apply immediately and clear any adult genre selected.
+  const handleSafeSearchToggle = useCallback((val) => {
+    if (!val) {
+      Alert.alert(
+        'U sure bro? 🤨',
+        'This will show explicit and adult content across the entire app.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Yes',
+            style: 'destructive',
+            onPress: () => setSafeSearch(false),
+          },
+        ]
+      );
+    } else {
+      setSafeSearch(true);
+      const adultIds = ADULT_GENRE_OPTIONS.map((g) => g.value);
+      setFilters((prev) => ({
+        ...prev,
+        genreId: adultIds.includes(prev.genreId) ? '' : prev.genreId,
+      }));
+    }
+  }, [setSafeSearch]);
+
+  // Merge adult genres only when safe search is disabled
+  const visibleGenreOptions = safeSearch
+    ? GENRE_OPTIONS
+    : [...GENRE_OPTIONS, ...ADULT_GENRE_OPTIONS];
 
   const handleSearch = useCallback(() => {
     navigation.navigate('MainTabs', { screen: 'Inicio', params: { filters: JSON.stringify(filters) } });
@@ -173,7 +207,8 @@ export default function SearchScreen({ navigation }) {
 
   const handleReset = useCallback(() => {
     setFilters(DEFAULT_FILTERS);
-  }, []);
+    setSafeSearch(true);
+  }, [setSafeSearch]);
 
   return (
     <ScrollView
@@ -206,18 +241,6 @@ export default function SearchScreen({ navigation }) {
           onChangeText={set('studio')}
           icon="business-outline"
         />
-        <StyledInput
-          placeholder="Genre keywords…"
-          value={filters.genre}
-          onChangeText={set('genre')}
-          icon="pricetag-outline"
-        />
-        <StyledInput
-          placeholder="Character name…"
-          value={filters.character}
-          onChangeText={set('character')}
-          icon="person-outline"
-        />
       </View>
 
       {/* ── Pickers ── */}
@@ -238,7 +261,7 @@ export default function SearchScreen({ navigation }) {
               label="Genre"
               selectedValue={filters.genreId}
               onValueChange={set('genreId')}
-              items={GENRE_OPTIONS}
+              items={visibleGenreOptions}
             />
           </View>
         </View>
@@ -275,8 +298,8 @@ export default function SearchScreen({ navigation }) {
         <StyledSwitch
           label="Safe Search (SFW)"
           description="Exclude adult and explicit content"
-          value={filters.safeSearch}
-          onValueChange={set('safeSearch')}
+          value={safeSearch}
+          onValueChange={handleSafeSearchToggle}
           icon="shield-checkmark-outline"
         />
       </View>
